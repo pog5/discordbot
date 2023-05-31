@@ -1,6 +1,7 @@
 use serenity::async_trait;
 use serenity::model::prelude::UserId;
 use serenity::prelude::*;
+use serenity::model::user::User;
 use serenity::model::channel::Message;
 use serenity::framework::standard::macros::{command, group};
 use serenity::framework::standard::CommandResult;
@@ -53,10 +54,14 @@ async fn get_random_cat_gif() -> Result<String> {
 
 #[group]
 #[commands(ping)]
+#[group]
 #[commands(meow)]
+#[group]
 #[commands(daily)]
+#[group]
 #[commands(bal)]
-//#[commands(pay)]
+#[group]
+#[commands(pay)]
 
 struct General;
 
@@ -77,7 +82,7 @@ async fn main() {
         .configure(|c| c.prefix("~")) // set the bot's prefix to "~"
         .group(&GENERAL_GROUP);
 
-    let token = std::env::var("TOKEN").expect("Expected a token in the environment");
+    let token = std::env::var("TOKEN").expect("Please set the bot token as the TOKEN environment variable.");
     let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
     let mut bot = serenity::Client::builder(token, intents)
         .event_handler(Handler)
@@ -112,8 +117,9 @@ async fn meow(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 async fn bal(ctx: &Context, msg: &Message) -> CommandResult {
     let data_read = ctx.data.read().await;
-    let coin_cache = data_read.get::<UserCoinCache>().expect("u dumb").clone();
+    let coin_cache = data_read.get::<UserCoinCache>().expect("exception has occured").clone();
     let hash_map = coin_cache.lock().await;
+    
     let balance = hash_map.get(&msg.author.id).unwrap_or(&0);
     let response = format!("Your balance is **{}** coins", balance);
     msg.reply(ctx, &response).await?;
@@ -124,9 +130,10 @@ async fn bal(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 async fn pay(ctx: &Context, msg: &Message) -> CommandResult {
     let regexid = Regex::new(r"^\d{18}$").unwrap();
-    let recid = assert!(regexid.is_match(&msg.content));
-    let coins = "10"; //for testing only
-    let response = format!("Sent <@{:?}> **{}** coins", recid, coins);
+    let recieverid = assert!(regexid.is_match(&msg.content));
+    let recievername = UserId::to_user_cached(recieverid);
+    let response = format!("Sent <@{}> **{}** coins", recievername, coins);
+    println!("{} coins sent from {} to {}", coins, msg.author.id, recieverid);
     msg.reply(ctx, response).await?;
     Ok(())
 }
@@ -136,7 +143,7 @@ async fn pay(ctx: &Context, msg: &Message) -> CommandResult {
 async fn daily(ctx: &Context, msg: &Message) -> CommandResult {
     let amount = rand::thread_rng().gen_range(20..100);
     let data_read = ctx.data.read().await;
-    let coin_cache = data_read.get::<UserCoinCache>().expect("u dumb").clone();
+    let coin_cache = data_read.get::<UserCoinCache>().expect("exception has occured").clone();
     let mut hash_map = coin_cache.lock().await;
     let lock = hash_map.entry(msg.author.id).or_insert(0);
     *lock += amount;
